@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Certificate Verification</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f2f5fa;
+            color: #1e293b;
+        }
+        header {
+            background: #14213d;
+            color: white;
+            padding: 24px 16px;
+            text-align: center;
+        }
+        header p { color: #dbeafe; }
+        main { max-width: 950px; margin: 24px auto; padding: 0 15px; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 12px #0000000c;
+        }
+        h2 { margin-top: 0; color: #14213d; }
+        label { display: block; margin-top: 13px; font-weight: bold; }
+        input {
+            width: 100%;
+            padding: 11px;
+            margin-top: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+        button, .link-button {
+            display: inline-block;
+            border: 0;
+            border-radius: 6px;
+            padding: 11px 16px;
+            margin-top: 15px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        button:hover, .link-button:hover { background: #1d4ed8; }
+        .notice { padding: 12px; border-radius: 6px; margin-bottom: 10px; }
+        .success { background: #dcfce7; color: #166534; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .verified { background: #dcfce7; padding: 15px; border-radius: 8px; }
+        .warning { background: #fef3c7; padding: 15px; border-radius: 8px; }
+        .not-found { background: #fee2e2; padding: 15px; border-radius: 8px; }
+        .block {
+            border: 1px solid #dbe3ef;
+            padding: 14px;
+            border-radius: 8px;
+            margin-top: 12px;
+            overflow-wrap: anywhere;
+        }
+        .hash { font-family: monospace; font-size: 12px; }
+        .muted { color: #64748b; font-size: 13px; }
+        footer { text-align: center; padding: 20px; color: #64748b; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Blockchain Certificate Verification</h1>
+    <p>Issue, verify and inspect digital certificates</p>
+</header>
+
+<main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="notice {{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <section class="card">
+        <h2>Issue New Certificate</h2>
+        <p class="muted">Demo use only. Enter sample data for testing.</p>
+        <form action="{{ url_for('issue_certificate') }}" method="post">
+            <label for="student_name">Student Name</label>
+            <input id="student_name" name="student_name" maxlength="150" required>
+
+            <label for="course">Course / Degree</label>
+            <input id="course" name="course" maxlength="150" required>
+
+            <label for="institution">Institution Name</label>
+            <input id="institution" name="institution" maxlength="150" required>
+
+            <button type="submit">Issue Certificate</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Verify Certificate</h2>
+        <form action="{{ url_for('verify_certificate') }}" method="post">
+            <label for="certificate_id">Certificate ID</label>
+            <input id="certificate_id" name="certificate_id"
+                   placeholder="Paste the complete certificate ID" required>
+            <button type="submit">Verify Certificate</button>
+        </form>
+
+        {% if result %}
+            {% if result.status == "VERIFIED" %}
+                <div class="verified">
+                    <h3>✓ Certificate Verified</h3>
+                    <p>{{ result.message }}</p>
+                </div>
+            {% elif result.status == "WARNING" %}
+                <div class="warning">
+                    <h3>⚠ Integrity Warning</h3>
+                    <p>{{ result.message }}</p>
+                </div>
+            {% else %}
+                <div class="not-found">
+                    <h3>✗ Certificate Not Verified</h3>
+                    <p>{{ result.message }}</p>
+                </div>
+            {% endif %}
+
+            {% if result.certificate %}
+                <h3>Certificate Details</h3>
+                <p><strong>ID:</strong> {{ result.certificate.certificate_id }}</p>
+                <p><strong>Student:</strong> {{ result.certificate.student_name }}</p>
+                <p><strong>Course:</strong> {{ result.certificate.course }}</p>
+                <p><strong>Institution:</strong> {{ result.certificate.institution }}</p>
+                <p><strong>Issue date:</strong> {{ result.certificate.issue_date }}</p>
+            {% endif %}
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h2>Blockchain Integrity</h2>
+        <p>Stored certificates: <strong>{{ total_certificates }}</strong></p>
+        <a class="link-button" href="{{ url_for('integrity') }}">
+            Check Blockchain Integrity
+        </a>
+
+        {% if integrity %}
+            <div class="notice {{ 'success' if integrity.valid else 'error' }}">
+                <strong>{{ 'Valid' if integrity.valid else 'Invalid' }}:</strong>
+                {{ integrity.message }}
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h2>Blockchain Records</h2>
+        <p class="muted">Newest blocks appear last. Keep certificate IDs for verification.</p>
+        {% for block in chain %}
+            <div class="block">
+                <h3>Block #{{ block.index }}</h3>
+                <p><strong>Timestamp:</strong> {{ block.timestamp }}</p>
+
+                {% if block.data.certificate_id %}
+                    <p><strong>Certificate ID:</strong><br>
+                    {{ block.data.certificate_id }}</p>
+                    <p><strong>Student:</strong> {{ block.data.student_name }}</p>
+                    <p><strong>Course:</strong> {{ block.data.course }}</p>
+                    <p><strong>Institution:</strong> {{ block.data.institution }}</p>
+                {% else %}
+                    <p>{{ block.data.message }}</p>
+                {% endif %}
+
+                <p><strong>Previous hash:</strong></p>
+                <p class="hash">{{ block.previous_hash }}</p>
+                <p><strong>Block hash:</strong></p>
+                <p class="hash">{{ block.hash }}</p>
+            </div>
+        {% else %}
+            <p>No blocks available.</p>
+        {% endfor %}
+    </section>
+</main>
+
+<footer>
+    Educational mini project · Python, Flask and SHA-256
+</footer>
+</body>
+</html>

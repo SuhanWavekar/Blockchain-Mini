@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CertChain{% endblock %} — Blockchain Certificates</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- Mobile toggle button -->
+    <button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+        <i class="fas fa-bars"></i>
+    </button>
+    
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-cubes"></i>
+            <span>CertChain</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('dashboard') }}" class="{% if active_page == 'dashboard' %}active{% endif %}"><i class="fas fa-chart-pie"></i><span>Dashboard</span></a></li>
+            <li><a href="{{ url_for('issue_page') }}" class="{% if active_page == 'issue' %}active{% endif %}"><i class="fas fa-certificate"></i><span>Issue</span></a></li>
+            <li><a href="{{ url_for('verify_page') }}" class="{% if active_page == 'verify' %}active{% endif %}"><i class="fas fa-search"></i><span>Verify</span></a></li>
+            <li><a href="{{ url_for('explorer') }}" class="{% if active_page == 'explorer' %}active{% endif %}"><i class="fas fa-link"></i><span>Explorer</span></a></li>
+            <li><a href="{{ url_for('integrity') }}" class="{% if active_page == 'integrity' %}active{% endif %}"><i class="fas fa-shield-halved"></i><span>Integrity</span></a></li>
+            <li><a href="{{ url_for('tamper_demo') }}" class="{% if active_page == 'tamper' %}active{% endif %}"><i class="fas fa-bug"></i><span>Tamper Demo</span></a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <small>Python · Flask · SHA-256</small>
+        </div>
+    </nav>
+    
+    <main class="content">
+        <header class="page-header">
+            <div>
+                <h1>{% block page_title %}{% endblock %}</h1>
+                <p class="page-subtitle">{% block page_subtitle %}{% endblock %}</p>
+            </div>
+        </header>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, msg in messages %}
+                <div class="toast {{ category }}">
+                    <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+                    {{ msg }}
+                    <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+                </div>
+            {% endfor %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

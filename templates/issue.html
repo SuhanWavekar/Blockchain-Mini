@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Issue Certificate{% endblock %}
+{% block page_title %}Issue Certificate{% endblock %}
+{% block page_subtitle %}Create a new blockchain-verified certificate{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="two-col">
+        <!-- Issue form -->
+        <div class="card">
+            <h2><i class="fas fa-plus-circle"></i> New Certificate</h2>
+            <form action="{{ url_for('issue_certificate') }}" method="post">
+                <div class="form-group">
+                    <label for="student_name">Student Name</label>
+                    <input type="text" id="student_name" name="student_name" maxlength="150" required placeholder="e.g. Rahul Sharma">
+                </div>
+                <div class="form-group">
+                    <label for="course">Course / Degree</label>
+                    <input type="text" id="course" name="course" maxlength="150" required placeholder="e.g. B.E. Computer Engineering">
+                </div>
+                <div class="form-group">
+                    <label for="institution">Institution Name</label>
+                    <input type="text" id="institution" name="institution" maxlength="150" required placeholder="e.g. ABC College of Engineering">
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-certificate"></i> Issue Certificate</button>
+            </form>
+        </div>
+
+        <!-- Last issued certificate -->
+        <div class="card">
+            <h2><i class="fas fa-check-circle"></i> Last Issued</h2>
+            {% if last_certificate %}
+                <div class="result-box verified">
+                    <h3><i class="fas fa-check-circle"></i> Certificate Issued Successfully</h3>
+                    <div class="cert-details">
+                        <p><strong>Certificate ID:</strong><br><span style="font-family:monospace;font-size:13px;">{{ last_certificate.certificate_id }}</span></p>
+                        <p><strong>Student:</strong> {{ last_certificate.student_name }}</p>
+                        <p><strong>Course:</strong> {{ last_certificate.course }}</p>
+                        <p><strong>Institution:</strong> {{ last_certificate.institution }}</p>
+                        <p><strong>Issue Date:</strong> {{ last_certificate.issue_date }}</p>
+                    </div>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('certificate_pdf', cert_id=last_certificate.certificate_id) }}" class="btn btn-primary btn-sm"><i class="fas fa-file-pdf"></i> Download PDF</a>
+                        <a href="{{ url_for('certificate_qr', cert_id=last_certificate.certificate_id) }}" class="btn btn-outline btn-sm" target="_blank"><i class="fas fa-qrcode"></i> View QR Code</a>
+                    </div>
+                </div>
+            {% else %}
+                <p style="color:#64748b;">Issue a certificate to see the result here. The certificate will include a unique ID, PDF download, and QR code for verification.</p>
+                <div style="text-align:center;padding:40px 0;color:#cbd5e1;">
+                    <i class="fas fa-certificate" style="font-size:60px;"></i>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

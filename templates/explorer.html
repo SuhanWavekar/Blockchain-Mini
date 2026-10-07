@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Blockchain Explorer{% endblock %}
+{% block page_title %}Blockchain Explorer{% endblock %}
+{% block page_subtitle %}Browse and search all blocks in the chain{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <!-- Search bar -->
+    <form class="search-bar" action="{{ url_for('explorer') }}" method="get">
+        <input type="text" name="q" placeholder="Search by student name, course, institution, or certificate ID..." value="{{ search_query }}">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Search</button>
+        {% if search_query %}
+            <a href="{{ url_for('explorer') }}" class="btn btn-outline">Clear</a>
+        {% endif %}
+    </form>
+
+    {% if search_query %}
+        <p style="color:#64748b;margin-bottom:16px;">Found <strong>{{ chain|length }}</strong> block(s) matching "{{ search_query }}"</p>
+    {% endif %}
+
+    <div class="card">
+        <h2><i class="fas fa-link"></i> Chain Blocks ({{ chain|length }})</h2>
+        
+        {% for block in chain %}
+            {% if not loop.first %}
+                <div class="chain-arrow"><i class="fas fa-arrow-down"></i></div>
+            {% endif %}
+            <div class="block-card">
+                <div class="block-header">
+                    <span class="block-index">
+                        <i class="fas fa-cube" style="color:#3b82f6;"></i> Block #{{ block.index }}
+                    </span>
+                    {% if block.data.certificate_id is defined and block.data.certificate_id %}
+                        <span class="block-badge certificate"><i class="fas fa-certificate"></i> Certificate</span>
+                    {% else %}
+                        <span class="block-badge genesis"><i class="fas fa-star"></i> Genesis</span>
+                    {% endif %}
+                </div>
+                <div class="block-info">
+                    <p><strong>Timestamp:</strong> {{ block.timestamp }}</p>
+                    {% if block.data.certificate_id is defined and block.data.certificate_id %}
+                        <p><strong>Certificate ID:</strong> <span style="font-family:monospace;font-size:12px;">{{ block.data.certificate_id }}</span></p>
+                        <p><strong>Student:</strong> {{ block.data.student_name }}</p>
+                        <p><strong>Course:</strong> {{ block.data.course }}</p>
+                        <p><strong>Institution:</strong> {{ block.data.institution }}</p>
+                        <p><strong>Issue Date:</strong> {{ block.data.issue_date }}</p>
+                    {% else %}
+                        <p><strong>Data:</strong> {{ block.data.message }}</p>
+                    {% endif %}
+                    {% if block.nonce is defined %}
+                        <div class="mining-info">
+                            <i class="fas fa-hammer"></i> Nonce: {{ block.nonce }}
+                            {% if block.mining_time is defined %}
+                                · Mined in {{ block.mining_time }}s
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="hash-text">
+                    <strong>Previous Hash:</strong> {{ block.previous_hash }}
+                </div>
+                <div class="hash-text">
+                    <strong>Block Hash:</strong> {{ block.hash }}
+                </div>
+                {% if block.data.certificate_id is defined and block.data.certificate_id %}
+                <div class="action-buttons">
+                    <a href="{{ url_for('certificate_pdf', cert_id=block.data.certificate_id) }}" class="btn btn-sm btn-outline"><i class="fas fa-file-pdf"></i> PDF</a>
+                    <a href="{{ url_for('certificate_qr', cert_id=block.data.certificate_id) }}" class="btn btn-sm btn-outline" target="_blank"><i class="fas fa-qrcode"></i> QR</a>
+                </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <p style="color:#64748b;">No blocks found.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

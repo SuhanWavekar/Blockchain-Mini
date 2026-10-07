@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Chain Integrity{% endblock %}
+{% block page_title %}Blockchain Integrity Check{% endblock %}
+{% block page_subtitle %}Verify the integrity of the entire blockchain{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <!-- Overall status -->
+    <div class="card">
+        <h2><i class="fas fa-shield-halved"></i> Overall Status</h2>
+        <div class="result-box {{ 'verified' if integrity.valid else 'not-found' }}">
+            <h3>
+                {% if integrity.valid %}
+                    <i class="fas fa-check-circle" style="color:#16a34a;"></i> Blockchain is Valid
+                {% else %}
+                    <i class="fas fa-times-circle" style="color:#dc2626;"></i> Blockchain Integrity Failed
+                {% endif %}
+            </h3>
+            <p>{{ integrity.message }}</p>
+        </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon blue"><i class="fas fa-cubes"></i></div>
+            <div class="stat-value">{{ chain|length }}</div>
+            <div class="stat-label">Total Blocks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-check"></i></div>
+            <div class="stat-value">{{ integrity.details|selectattr('all_valid')|list|length }}</div>
+            <div class="stat-label">Valid Blocks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon {{ 'green' if integrity.valid else 'amber' }}">
+                <i class="fas {{ 'fa-link' if integrity.valid else 'fa-link-slash' }}"></i>
+            </div>
+            <div class="stat-value">{{ integrity.details|selectattr('link_valid')|list|length }}</div>
+            <div class="stat-label">Valid Links</div>
+        </div>
+    </div>
+
+    <!-- Per-block details -->
+    <div class="card">
+        <h2><i class="fas fa-list-check"></i> Block-by-Block Verification</h2>
+        {% for detail in integrity.details %}
+            {% set block = chain[detail.index] %}
+            <div class="block-card {{ 'valid' if detail.all_valid else 'invalid' }}">
+                <div class="block-header">
+                    <span class="block-index">
+                        <i class="fas fa-cube" style="color:{{ '#16a34a' if detail.all_valid else '#dc2626' }};"></i>
+                        Block #{{ detail.index }}
+                    </span>
+                    <span class="status-badge {{ 'valid' if detail.all_valid else 'invalid' }}">
+                        {% if detail.all_valid %}
+                            <i class="fas fa-check"></i> Valid
+                        {% else %}
+                            <i class="fas fa-times"></i> Invalid
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="block-info">
+                    <p>
+                        <strong>Hash Check:</strong>
+                        {% if detail.hash_valid %}
+                            <span style="color:#16a34a;"><i class="fas fa-check"></i> Pass</span>
+                        {% else %}
+                            <span style="color:#dc2626;"><i class="fas fa-times"></i> Fail — Block data has been modified</span>
+                        {% endif %}
+                    </p>
+                    <p>
+                        <strong>Link Check:</strong>
+                        {% if detail.link_valid %}
+                            <span style="color:#16a34a;"><i class="fas fa-check"></i> Pass</span>
+                        {% else %}
+                            <span style="color:#dc2626;"><i class="fas fa-times"></i> Fail — Previous hash does not match</span>
+                        {% endif %}
+                    </p>
+                    <p>
+                        <strong>Index Check:</strong>
+                        {% if detail.index_valid %}
+                            <span style="color:#16a34a;"><i class="fas fa-check"></i> Pass</span>
+                        {% else %}
+                            <span style="color:#dc2626;"><i class="fas fa-times"></i> Fail — Index mismatch</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="hash-text">
+                    <strong>Block Hash:</strong> {{ block.hash }}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

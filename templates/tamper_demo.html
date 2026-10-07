@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}Tamper Demo{% endblock %}
+{% block page_title %}Tamper Detection Demo{% endblock %}
+{% block page_subtitle %}See how modifying a block breaks the entire chain{% endblock %}
+
+{% block content %}
+<div class="page-content">
+    <div class="card">
+        <h2><i class="fas fa-flask"></i> How It Works</h2>
+        <p style="color:#475569;line-height:1.7;">
+            Each block's hash depends on its data <strong>and</strong> the previous block's hash.
+            If you modify any block's data, its hash changes, which invalidates every subsequent block.
+            This is what makes blockchains <strong>tamper-evident</strong>. Try it below!
+        </p>
+    </div>
+
+    <!-- Tamper Controls -->
+    <div class="card">
+        <h2><i class="fas fa-tools"></i> Tamper Controls</h2>
+        <div class="tamper-controls">
+            <select id="blockSelect" class="tamper-select">
+                <option value="">Select a block to tamper...</option>
+            </select>
+            <select id="fieldSelect" class="tamper-select">
+                <option value="student_name">Student Name</option>
+                <option value="course">Course</option>
+                <option value="institution">Institution</option>
+            </select>
+            <input type="text" id="newValue" class="tamper-input" placeholder="New value..." style="flex:1;">
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button class="btn btn-danger" onclick="tamperBlock()"><i class="fas fa-bug"></i> Tamper Block</button>
+            <button class="btn btn-success" onclick="resetChain()"><i class="fas fa-rotate-left"></i> Reset Chain</button>
+        </div>
+    </div>
+
+    <!-- Chain Status -->
+    <div id="chainStatus" class="tamper-status valid">
+        <i class="fas fa-check-circle"></i> Chain is intact — all hashes are valid
+    </div>
+
+    <!-- Chain Visualization -->
+    <div class="card">
+        <h2><i class="fas fa-link"></i> Chain Visualization</h2>
+        <div id="chainView">Loading...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let originalChain = [];
+let currentChain = [];
+
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function buildHashInput(block) {
+    const obj = {
+        data: block.data,
+        index: block.index,
+        previous_hash: block.previous_hash,
+        timestamp: block.timestamp
+    };
+    if (block.nonce !== undefined) {
+        obj.nonce = block.nonce;
+    }
+    // sort_keys=True, separators=(',', ':')
+    return JSON.stringify(obj, Object.keys(obj).sort(), 0)
+        .replace(/: /g, ':')
+        .replace(/,\n/g, ',')
+        .replace(/\n/g, '')
+        .replace(/\{\n/g, '{')
+        .replace(/\}\n/g, '}');
+}
+
+// Actually we need a proper canonical JSON like Python's json.dumps with sort_keys and separators
+function canonicalStringify(obj) {
+    if (obj === null || typeof obj !== 'object') {
+        return JSON.stringify(obj);
+    }
+    if (Array.isArray(obj)) {
+        return '[' + obj.map(canonicalStringify).join(',') + ']';
+    }
+    const keys = Object.keys(obj).sort();
+    const parts = keys.map(k => JSON.stringify(k) + ':' + canonicalStringify(obj[k]));
+    return '{' + parts.join(',') + '}';
+}
+
+async function computeHash(block) {
+    const obj = {
+        data: block.data,
+        index: block.index,
+        previous_hash: block.previous_hash,
+        timestamp: block.timestamp
+    };
+    if (block.nonce !== undefined) {
+        obj.nonce = block.nonce;
+    }
+    const canonical = canonicalStringify(obj);
+    return await sha256(canonical);
+}
+
+async function loadChain() {
+    const resp = await fetch('/api/chain');
+    originalChain = await resp.json();
+    currentChain = JSON.parse(JSON.stringify(originalChain));
+    populateBlockSelect();
+    await renderChain();
+}
+
+function populateBlockSelect() {
+    const select = document.getElementById('blockSelect');
+    select.innerHTML = '<option value="">Select a block to tamper...</option>';
+    currentChain.forEach((block, i) => {
+        if (i === 0) return; // skip genesis
+        if (!block.data.certificate_id) return;
+        select.innerHTML += `<option value="${i}">Block #${i} — ${block.data.student_name}</option>`;
+    });
+}
+
+async function renderChain() {
+    const container = document.getElementById('chainView');
+    let html = '';
+    let chainBroken = false;
+    
+    for (let i = 0; i < currentChain.length; i++) {
+        const block = currentChain[i];
+        const expectedHash = await computeHash(block);
+        const hashValid = block.hash === expectedHash;
+        let linkValid = true;
+        if (i === 0) {
+            linkValid = block.previous_hash === '0';
+        } else {
+            linkValid = block.previous_hash === currentChain[i-1].hash;
+        }
+        const allValid = hashValid && linkValid;
+        if (!allValid) chainBroken = true;
+        
+        if (i > 0) {
+            html += `<div class="chain-arrow"><i class="fas fa-arrow-down"></i></div>`;
+        }
+        
+        const statusClass = allValid ? 'valid' : 'invalid';
+        const isCert = block.data.certificate_id;
+        const badgeClass = isCert ? 'certificate' : 'genesis';
+        const badgeText = isCert ? 'Certificate' : 'Genesis';
+        const badgeIcon = isCert ? 'fa-certificate' : 'fa-star';
+        
+        html += `<div class="block-card ${statusClass}">`;
+        html += `<div class="block-header">`;
+        html += `<span class="block-index"><i class="fas fa-cube" style="color:${allValid ? '#16a34a' : '#dc2626'};"></i> Block #${block.index}</span>`;
+        html += `<span class="block-badge ${badgeClass}"><i class="fas ${badgeIcon}"></i> ${badgeText}</span>`;
+        html += `</div>`;
+        html += `<div class="block-info">`;
+        if (isCert) {
+            html += `<p><strong>Student:</strong> ${block.data.student_name}</p>`;
+            html += `<p><strong>Course:</strong> ${block.data.course}</p>`;
+            html += `<p><strong>Institution:</strong> ${block.data.institution}</p>`;
+        } else {
+            html += `<p><strong>Data:</strong> ${block.data.message}</p>`;
+        }
+        html += `<p><strong>Hash Valid:</strong> ${hashValid ? '<span style="color:#16a34a"><i class="fas fa-check"></i> Yes</span>' : '<span style="color:#dc2626"><i class="fas fa-times"></i> No — data was modified!</span>'}</p>`;
+        html += `<p><strong>Link Valid:</strong> ${linkValid ? '<span style="color:#16a34a"><i class="fas fa-check"></i> Yes</span>' : '<span style="color:#dc2626"><i class="fas fa-times"></i> No — previous hash mismatch!</span>'}</p>`;
+        html += `</div>`;
+        html += `<div class="hash-text"><strong>Stored Hash:</strong> ${block.hash}</div>`;
+        if (!hashValid) {
+            html += `<div class="hash-text" style="background:#fee2e2;"><strong>Expected Hash:</strong> ${expectedHash}</div>`;
+        }
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+    
+    // Update status bar
+    const statusEl = document.getElementById('chainStatus');
+    if (chainBroken) {
+        statusEl.className = 'tamper-status invalid';
+        statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Chain integrity BROKEN — tampering detected!';
+    } else {
+        statusEl.className = 'tamper-status valid';
+        statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Chain is intact — all hashes are valid';
+    }
+}
+
+async function tamperBlock() {
+    const blockIdx = parseInt(document.getElementById('blockSelect').value);
+    const field = document.getElementById('fieldSelect').value;
+    const newValue = document.getElementById('newValue').value.trim();
+    
+    if (!blockIdx || !newValue) {
+        alert('Please select a block and enter a new value.');
+        return;
+    }
+    
+    // Tamper the data (but DON'T recalculate the hash — that's the point!)
+    currentChain[blockIdx].data[field] = newValue;
+    
+    await renderChain();
+}
+
+async function resetChain() {
+    currentChain = JSON.parse(JSON.stringify(originalChain));
+    document.getElementById('newValue').value = '';
+    document.getElementById('blockSelect').value = '';
+    await renderChain();
+}
+
+// Load on page ready
+loadChain();
+</script>
+{% endblock %}
